@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 
 tasks = [
@@ -63,3 +63,75 @@ async def create_task(req: Request):
     new_task = {"id": new_id, "title": title, "done": False}
     tasks.append(new_task)
     return JSONResponse(status_code=201, content = new_task)
+
+
+
+@app.put("/tasks/{id}")
+async def update_task(id: int, req: Request):
+    try:
+        body = await req.json()
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid request body"}
+        )
+
+    if not isinstance(body, dict):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body must be a JSON object"},
+        )
+
+    title = body.get("title")
+    done = body.get("done")
+
+    if (not title) and (done is None):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request must contain either title (str) or done (bool)"},
+        )
+
+    if "title" in body and (not isinstance(title, str) or not title.strip()):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Title must be a non-empty string"},
+        )
+
+
+    if "done" in body and not isinstance(done, bool):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Done must be a non-empty boolean"},
+        )
+
+
+    for task in tasks:
+        if task["id"] == id:
+            if title:
+                task["title"] = title
+            if "done" in body:
+                task["done"] = done
+            new_task = task
+            return JSONResponse(
+                status_code=200,
+                content = new_task
+            )
+
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Unknown id"}
+    )
+
+
+@app.delete("/tasks/{id}")
+async def delete_task(id: int):
+
+    for i, task in enumerate(tasks):
+        if task["id"] == id:
+            tasks.pop(i)
+            return Response(status_code=204)
+
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Unknown id"}
+    )
