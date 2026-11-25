@@ -12,21 +12,25 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
+    """Task info."""
     return { "name": "Task API", "version": "1.0", "endpoints": ["/tasks"] }
 
 
 @app.get("/health")
 async def status():
+    """Server status."""
     return { "status": "ok" }
 
 
 @app.get("/tasks")
 async def get_tasks():
+    """Lists all tasks."""
     return tasks
 
 
 @app.get("/tasks/{id}")
 async def get_task(id: int):
+    """Lists a speific task by ID"""
     for task in tasks:
         if task["id"] == id:
             return task
@@ -37,8 +41,27 @@ async def get_task(id: int):
     )
 
 
-@app.post("/tasks")
+@app.post("/tasks",
+status_code=201,
+openapi_extra={
+    "requestBody": {
+        "required": True,
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "minLength": 1}
+                    },
+                    "required": ["title"],
+                },
+                "example": {"title": "Buy milk"},
+            }
+        },
+    }
+},)
 async def create_task(req: Request):
+    """Creates a new task."""
     body = await req.json()
 
     if not isinstance(body, dict):
@@ -66,8 +89,33 @@ async def create_task(req: Request):
 
 
 
-@app.put("/tasks/{id}")
+@app.put(
+    "/tasks/{id}",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "minLength": 1},
+                            "done": {"type": "boolean"},
+                        },
+                        "anyOf": [
+                            {"required": ["title"]},
+                            {"required": ["done"]},
+                        ],
+                    },
+                    "example": {"done": True},
+                }
+            },
+        }
+    },
+)
+
 async def update_task(id: int, req: Request):
+    """Updates a task's title or done (completion status)."""
     try:
         body = await req.json()
     except ValueError:
@@ -125,7 +173,7 @@ async def update_task(id: int, req: Request):
 
 @app.delete("/tasks/{id}")
 async def delete_task(id: int):
-
+    """Deletes a task."""
     for i, task in enumerate(tasks):
         if task["id"] == id:
             tasks.pop(i)
